@@ -1,0 +1,22 @@
+# Puppet Managed application.properties for Fitness Equipment Maintenance Portal
+# Environment: <%= @environment %>
+# Node: <%= @facts['networking']['fqdn'] rescue 'localhost' %>
+
+spring.application.name=fitness-equipment-portal
+server.port=<%= @app_port %>
+
+# Production H2 File Database (Persistent across server restarts)
+spring.datasource.url=jdbc:h2:file:<%= @install_dir %>/data/fitnessdb;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE
+spring.datasource.driverClassName=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=SecureFitnessPass2026!
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+spring.jpa.hibernate.ddl-auto=update
+
+# Actuator Health Metrics
+management.endpoints.web.exposure.include=health,info,metrics
+management.endpoint.health.show-details=when-authorized
+
+# Logging
+logging.file.name=<%= @log_dir %>/fitness-portal.log
+logging.level.com.fitnessequipment=INFO

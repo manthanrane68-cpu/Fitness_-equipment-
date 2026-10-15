@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  fitness-portal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fitnessequipment/portal:1.0.0
+    container_name: fitness-equipment-portal-app
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - SPRING_PROFILES_ACTIVE=prod
+      - JAVA_OPTS=-Xms256m -Xmx512m
+    volumes:
+      - app-logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  app-logs:
+    driver: local

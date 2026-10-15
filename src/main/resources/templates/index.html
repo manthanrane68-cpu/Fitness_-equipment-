@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness Equipment Maintenance Portal</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+    <nav class="navbar">
+        <a th:href="@{/}" class="brand">
+            <span>&#9881;</span> Fitness Equipment Maintenance Portal
+        </a>
+        <div class="nav-links">
+            <a th:href="@{/}" class="active">Overview</a>
+            <a th:href="@{/equipment}">Equipment Inventory</a>
+            <a th:href="@{/maintenance}">Workflow &amp; Tickets</a>
+            <a th:href="@{/dashboard}">KPI Dashboard</a>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem;">
+                <label for="roleSelector" style="font-size: 0.8rem; color: #94a3b8;">Role:</label>
+                <select id="roleSelector" class="form-control" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem; background: #1e293b; color: #fff; border-color: #475569;">
+                    <option value="TRAINER">Staff / Trainer</option>
+                    <option value="TECHNICIAN" selected>Maintenance Technician</option>
+                    <option value="FACILITY_ADMIN">Facility Admin</option>
+                </select>
+                <span id="currentRoleBadge" class="role-badge">Role: TECHNICIAN</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Operations &amp; Maintenance Command Center</h1>
+                <p class="page-subtitle">Real-time status tracking, preventive workflows and breakdown resolution for gym facilities</p>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+                <button id="btnOpenReportModal" class="btn btn-danger">&#9888; Report Breakdown</button>
+                <button id="btnOpenAddEquipmentModal" class="btn btn-primary">+ Add Equipment</button>
+            </div>
+        </div>
+
+        <!-- KPI Metrics Grid -->
+        <div class="metrics-grid">
+            <div class="metric-card" id="cardTotalEquipment">
+                <div class="title">Total Fleet Units</div>
+                <div class="value" th:text="${summary.totalEquipment}">0</div>
+                <div class="trend" style="color: var(--secondary);">Active registered machines</div>
+            </div>
+            <div class="metric-card" id="cardOperational">
+                <div class="title">Operational Units</div>
+                <div class="value" style="color: var(--success);" th:text="${summary.operationalCount}">0</div>
+                <div class="trend" style="color: var(--success);">&#10003; Ready for members</div>
+            </div>
+            <div class="metric-card" id="cardBreakdowns">
+                <div class="title">Active Breakdowns</div>
+                <div class="value" style="color: var(--danger);" th:text="${summary.activeBreakdowns}">0</div>
+                <div class="trend" style="color: var(--danger);">&#9888; Pending resolution</div>
+            </div>
+            <div class="metric-card" id="cardCriticalHazards">
+                <div class="title">Safety Alerts</div>
+                <div class="value" style="color: #dc2626;" th:text="${summary.criticalSafetyHazards}">0</div>
+                <div class="trend" style="color: #dc2626;">High/Critical risk items</div>
+            </div>
+            <div class="metric-card" id="cardMttr">
+                <div class="title">Avg MTTR</div>
+                <div class="value" style="color: var(--primary);" th:text="${summary.meanTimeToRepairHours} + ' hrs'">0.0 hrs</div>
+                <div class="trend" style="color: var(--primary);">&#9201; Mean time to repair</div>
+            </div>
+        </div>
+
+        <!-- Active Maintenance Tickets Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">&#128295; Active Breakdown &amp; Maintenance Tickets</h2>
+                <a th:href="@{/maintenance}" class="btn btn-outline" style="font-size: 0.8rem;">View All Tickets &rarr;</a>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ticket #</th>
+                            <th>Equipment</th>
+                            <th>Zone</th>
+                            <th>Reported By</th>
+                            <th>Issue Summary</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Assigned Tech</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="log : ${activeBreakdowns}" th:id="'log-row-' + ${log.id}">
+                            <td style="font-weight: 600;" th:text="'#' + ${log.id}">#1</td>
+                            <td>
+                                <strong th:text="${log.equipment.name}">Treadmill X9</strong><br>
+                                <small style="color: #64748b;" th:text="${log.equipment.serialNumber}">TM-001</small>
+                            </td>
+                            <td th:text="${log.equipment.gymZone}">Cardio Zone A</td>
+                            <td th:text="${log.reportedBy}">Trainer Alex</td>
+                            <td th:text="${log.issueTitle}">Squeaking belt</td>
+                            <td>
+                                <span th:class="'priority-' + ${log.priority}" th:text="${log.priority}">HIGH</span>
+                            </td>
+                            <td>
+                                <span th:class="'status-badge status-' + ${log.status}" th:text="${log.status}">REPORTED</span>
+                            </td>
+                            <td th:text="${log.assignedTechnician != null ? log.assignedTechnician : 'Unassigned'}">Unassigned</td>
+                            <td>
+                                <button class="btn btn-outline btn-workflow-trigger" style="padding: 0.25rem 0.6rem; font-size: 0.75rem;"
+                                        th:data-ticket-id="${log.id}"
+                                        th:data-status="${log.status}"
+                                        th:data-technician="${log.assignedTechnician}">
+                                    Transition &rarr;
+                                </button>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(activeBreakdowns)}">
+                            <td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">
+                                &#10003; All gym equipment is currently in full operational condition!
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Equipment Fleet Quick View -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">&#127947; Equipment Fleet Snapshot</h2>
+                <a th:href="@{/equipment}" class="btn btn-outline" style="font-size: 0.8rem;">Full Inventory &rarr;</a>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Serial #</th>
+                            <th>Gym Zone</th>
+                            <th>Status</th>
+                            <th>Last Inspected</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="item : ${equipmentList}">
+                            <td th:text="${item.id}">1</td>
+                            <td><strong th:text="${item.name}">Treadmill</strong></td>
+                            <td th:text="${item.type}">TREADMILL</td>
+                            <td th:text="${item.serialNumber}">SN-12345</td>
+                            <td th:text="${item.gymZone}">Cardio Zone A</td>
+                            <td>
+                                <span th:class="'status-badge status-' + ${item.currentStatus}" th:text="${item.currentStatus}">OPERATIONAL</span>
+                            </td>
+                            <td th:text="${item.lastInspectionDate != null ? item.lastInspectionDate : 'Pending'}">2026-10-10</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Report Breakdown -->
+    <div id="reportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">&#9888; Report Equipment Breakdown</h3>
+                <button class="close-btn" onclick="closeModal('reportModal')">&times;</button>
+            </div>
+            <form id="reportBreakdownForm">
+                <div class="form-group">
+                    <label class="form-label" for="reportEquipmentId">Select Equipment *</label>
+                    <select id="reportEquipmentId" class="form-control" required>
+                        <option value="">-- Choose Equipment Unit --</option>
+                        <option th:each="item : ${equipmentList}" th:value="${item.id}" th:text="${item.name} + ' (' + ${item.serialNumber} + ' - ' + ${item.gymZone} + ')'"></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="reportedByName">Reported By *</label>
+                    <input type="text" id="reportedByName" class="form-control" placeholder="e.g. Trainer Jordan" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="reportIssueTitle">Issue Title *</label>
+                    <input type="text" id="reportIssueTitle" class="form-control" placeholder="e.g. Incline motor stuck at 15%" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="reportIssueDesc">Detailed Symptoms / Observations</label>
+                    <textarea id="reportIssueDesc" class="form-control" rows="3" placeholder="Describe noise, error codes, member complaints, or visible wear..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="reportPriority">Priority Level *</label>
+                    <select id="reportPriority" class="form-control" required>
+                        <option value="LOW">Low - Cosmetic / Minor</option>
+                        <option value="MEDIUM" selected>Medium - Degraded Performance</option>
+                        <option value="HIGH">High - Machine Inoperable</option>
+                        <option value="CRITICAL_SAFETY_HAZARD">Critical Safety Hazard - Urgent Risk</option>
+                    </select>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('reportModal')">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Submit Ticket</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Add Equipment -->
+    <div id="equipmentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">&#127947; Register New Equipment</h3>
+                <button class="close-btn" onclick="closeModal('equipmentModal')">&times;</button>
+            </div>
+            <form id="addEquipmentForm">
+                <div class="form-group">
+                    <label class="form-label" for="eqName">Equipment Name *</label>
+                    <input type="text" id="eqName" class="form-control" placeholder="e.g. Commercial Stair Climber 900" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="eqType">Type *</label>
+                    <select id="eqType" class="form-control" required>
+                        <option th:each="t : ${types}" th:value="${t}" th:text="${t}"></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="eqSerial">Unique Serial Number *</label>
+                    <input type="text" id="eqSerial" class="form-control" placeholder="e.g. SC-2026-991" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="eqZone">Gym Zone / Location *</label>
+                    <input type="text" id="eqZone" class="form-control" placeholder="e.g. Cardio Zone B" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="eqManufacturer">Manufacturer</label>
+                    <input type="text" id="eqManufacturer" class="form-control" placeholder="e.g. Matrix, LifeFitness, Hammer Strength">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="eqModel">Model Number</label>
+                    <input type="text" id="eqModel" class="form-control" placeholder="e.g. C50-XIR">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="eqInstallDate">Installation Date</label>
+                    <input type="date" id="eqInstallDate" class="form-control">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('equipmentModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Equipment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Workflow Status Transition -->
+    <div id="workflowModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">&#9881; Maintenance Workflow Transition</h3>
+                <button class="close-btn" onclick="closeModal('workflowModal')">&times;</button>
+            </div>
+            <form id="updateWorkflowForm">
+                <input type="hidden" id="wfTicketId">
+                <div class="form-group">
+                    <label class="form-label" for="wfNextStatus">Target Status *</label>
+                    <select id="wfNextStatus" class="form-control" required>
+                        <option value="REPORTED">REPORTED (Logged by Staff)</option>
+                        <option value="UNDER_INSPECTION">UNDER INSPECTION (Technician Assessing)</option>
+                        <option value="PARTS_ORDERED">PARTS ORDERED (Awaiting Spares)</option>
+                        <option value="IN_REPAIR">IN REPAIR (Bench / On-site Work)</option>
+                        <option value="OPERATIONAL">OPERATIONAL (Verified &amp; Recommissioned)</option>
+                        <option value="DECOMMISSIONED">DECOMMISSIONED (Admin Retirement)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="wfTechnician">Assigned Technician</label>
+                    <input type="text" id="wfTechnician" class="form-control" placeholder="Technician Name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="wfActualCost">Actual Cost ($)</label>
+                    <input type="number" step="0.01" id="wfActualCost" class="form-control" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="wfNotes">Transition Notes / Diagnostic Findings</label>
+                    <textarea id="wfNotes" class="form-control" rows="3" placeholder="Action taken, replacement part numbers, torque checks..."></textarea>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('workflowModal')">Cancel</button>
+                    <button type="submit" class="btn btn-success">Update Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+</body>
+</html>

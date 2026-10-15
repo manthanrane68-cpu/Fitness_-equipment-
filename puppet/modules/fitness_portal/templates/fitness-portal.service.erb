@@ -1,0 +1,24 @@
+[Unit]
+Description=Fitness Equipment Maintenance Portal Daemon
+After=network.target remote-fs.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=<%= @app_user %>
+Group=<%= @app_group %>
+WorkingDirectory=<%= @install_dir %>
+ExecStart=/usr/bin/java -Xms256m -Xmx512m -XX:+UseG1GC -Dspring.profiles.active=<%= @environment %> -Dserver.port=<%= @app_port %> -jar <%= @install_dir %>/bin/fitness-equipment-portal.jar
+SuccessExitStatus=143
+Restart=always
+RestartSec=10
+StandardOutput=append:<%= @log_dir %>/fitness-portal.log
+StandardError=append:<%= @log_dir %>/fitness-portal-error.log
+
+# Security Sandboxing
+ProtectSystem=full
+ProtectHome=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

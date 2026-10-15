@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KPI Analytics Dashboard - Fitness Equipment Maintenance Portal</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+    <nav class="navbar">
+        <a th:href="@{/}" class="brand">
+            <span>&#9881;</span> Fitness Equipment Maintenance Portal
+        </a>
+        <div class="nav-links">
+            <a th:href="@{/}">Overview</a>
+            <a th:href="@{/equipment}">Equipment Inventory</a>
+            <a th:href="@{/maintenance}">Workflow &amp; Tickets</a>
+            <a th:href="@{/dashboard}" class="active">KPI Dashboard</a>
+            <span id="currentRoleBadge" class="role-badge">Role: TECHNICIAN</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">&#128202; Executive Maintenance &amp; Reliability KPIs</h1>
+                <p class="page-subtitle">Equipment availability metrics, breakdown distribution, and Mean Time to Repair (MTTR)</p>
+            </div>
+            <a th:href="@{/api/dashboard/summary}" target="_blank" class="btn btn-outline">&#128196; Export JSON API</a>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="title">Total Assets</div>
+                <div class="value" th:text="${summary.totalEquipment}">0</div>
+                <div class="trend" style="color: var(--secondary);">Total monitored gym machines</div>
+            </div>
+            <div class="metric-card">
+                <div class="title">Operational Uptime</div>
+                <div class="value" style="color: var(--success);" th:text="${summary.operationalCount}">0</div>
+                <div class="trend" style="color: var(--success);">&#10003; 100% member available</div>
+            </div>
+            <div class="metric-card">
+                <div class="title">Under Inspection</div>
+                <div class="value" style="color: var(--warning);" th:text="${summary.underInspectionCount}">0</div>
+                <div class="trend" style="color: var(--warning);">&#128269; Diagnostic triage</div>
+            </div>
+            <div class="metric-card">
+                <div class="title">Parts Awaiting</div>
+                <div class="value" style="color: #4338ca;" th:text="${summary.partsOrderedCount}">0</div>
+                <div class="trend" style="color: #4338ca;">Vendor purchase orders active</div>
+            </div>
+            <div class="metric-card">
+                <div class="title">In Active Repair</div>
+                <div class="value" style="color: var(--danger);" th:text="${summary.inRepairCount}">0</div>
+                <div class="trend" style="color: var(--danger);">&#128295; Technician bench work</div>
+            </div>
+            <div class="metric-card">
+                <div class="title">Mean Time to Repair</div>
+                <div class="value" style="color: var(--primary);" th:text="${summary.meanTimeToRepairHours} + ' hrs'">0.0 hrs</div>
+                <div class="trend" style="color: var(--primary);">&#9201; Industry benchmark: &lt; 24h</div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+            <!-- Distribution by Gym Zone -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">&#128205; Fleet Distribution by Gym Zone</h2>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Gym Zone</th>
+                                <th>Machine Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="entry : ${summary.countByZone}">
+                                <td style="font-weight: 600;" th:text="${entry.key}">Cardio Zone A</td>
+                                <td>
+                                    <span class="status-badge" style="background: #e2e8f0; color: #1e293b; font-size: 0.85rem;" th:text="${entry.value} + ' units'">0 units</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Distribution by Equipment Type -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">&#127947; Assets by Equipment Category</h2>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Total Units</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="entry : ${summary.countByType}">
+                                <td style="font-weight: 600;" th:text="${entry.key}">TREADMILL</td>
+                                <td>
+                                    <span class="status-badge" style="background: #dbeafe; color: #1e40af; font-size: 0.85rem;" th:text="${entry.value} + ' units'">0 units</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+---
+# Ansible Playbook: Deploy & Provision Fitness Equipment Maintenance Portal
+- name: Provision Target Node for Fitness Equipment Maintenance Portal
+  hosts: fitness_servers
+  become: yes
+
+  vars:
+    app_version: "1.0.0"
+    app_port: 8080
+    app_user: "fitnessapp"
+    app_group: "fitnessapp"
+    install_dir: "/opt/fitness-portal"
+    log_dir: "/var/log/fitness-portal"
+
+  tasks:
+    - name: 1. Update APT package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: 2. Install OpenJDK 21, curl, and utilities
+      package:
+        name:
+          - openjdk-21-jre-headless
+          - curl
+          - wget
+          - nginx
+        state: present
+
+    - name: 3. Create service system group
+      group:
+        name: "{{ app_group }}"
+        state: present
+        system: yes
+
+    - name: 4. Create service system user
+      user:
+        name: "{{ app_user }}"
+        group: "{{ app_group }}"
+        home: "{{ install_dir }}"
+        shell: /bin/false
+        system: yes
+        create_home: no
+
+    - name: 5. Ensure application directories exist with secure ownership
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0750'
+      loop:
+        - "{{ install_dir }}"
+        - "{{ install_dir }}/bin"
+        - "{{ install_dir }}/conf"
+        - "{{ install_dir }}/data"
+        - "{{ log_dir }}"
+
+    - name: 6. Deploy Spring Boot Executable JAR Artifact
+      copy:
+        src: "../target/fitness-equipment-portal.jar"
+        dest: "{{ install_dir }}/bin/fitness-equipment-portal.jar"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0750'
+      notify: Restart Fitness Portal
+
+    - name: 7. Deploy Systemd service unit definition
+      copy:
+        dest: "/etc/systemd/system/fitness-portal.service"
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Fitness Equipment Maintenance Portal Daemon
+          After=network.target
+
+          [Service]
+          Type=simple
+          User={{ app_user }}
+          Group={{ app_group }}
+          WorkingDirectory={{ install_dir }}
+          ExecStart=/usr/bin/java -Xms256m -Xmx512m -jar {{ install_dir }}/bin/fitness-equipment-portal.jar --server.port={{ app_port }}
+          Restart=always
+          RestartSec=10
+          StandardOutput=append:{{ log_dir }}/fitness-portal.log
+          StandardError=append:{{ log_dir }}/fitness-portal-error.log
+
+          [Install]
+          WantedBy=multi-user.target
+      notify:
+        - Reload Systemd
+        - Restart Fitness Portal
+
+    - name: 8. Ensure service is enabled and active
+      systemd:
+        name: fitness-portal
+        enabled: yes
+        state: started
+
+    - name: 9. Perform Health Check Verification
+      uri:
+        url: "http://localhost:{{ app_port }}/api/dashboard/health"
+        method: GET
+        status_code: 200
+        return_content: yes
+      register: health_result
+      until: health_result.status == 200
+      retries: 10
+      delay: 5
+
+    - name: 10. Display Health Check Result
+      debug:
+        msg: "Health Check PASSED! Server response: {{ health_result.content }}"
+
+  handlers:
+    - name: Reload Systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Restart Fitness Portal
+      systemd:
+        name: fitness-portal
+        state: restarted
